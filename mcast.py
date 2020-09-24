@@ -1,4 +1,4 @@
-#! /usr/bin/python3.7
+#! /usr/bin/python3
 # -*- coding: utf-8 -*-
 import socket
 import struct
@@ -6,6 +6,9 @@ import sys
 import argparse
 import time
 import logging
+from packet import *
+import random
+import numpy as np
 
 
 # create logger with 'spam_application'
@@ -40,19 +43,27 @@ def send(mcast_address, mcast_port, iface, message, loop):
     # Set allowable multicast hop limit
     ttl = struct.pack('b', 3)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
- 
-    print('sending "{}"'.format(message))
+    #if message is None:
+    #    message = serialize({'count': 0, 'length': 5, 'bytes': bytes(range(5))})
+    #print('sending "{}"'.format(message))
+
     # Send to multicast group
-    if loop<=0:
-        log.info('Press ctrl+C to stop sending')
-        while True:
+    length = 4000
+    
+    n = 1
+    while True:
+        # message = serialize({'count': n, 'length': length, 'bytes': bytes(random.sample(range(256), length))})
+        message = serialize({'count': n, 'length': length, 'bytes': np.random.randint(0, 256, size=(length,), dtype=np.uint8).tobytes()})
+        if type(message) is not bytes:
             sock.sendto(message.encode(), multicast_group)
-            time.sleep(1)
-    else:
-        for n in range(loop):
-            log.info('Sending {} of {}'.format(n+1, loop))
-            sock.sendto(message.encode(), multicast_group)
-            time.sleep(1)
+        elif type(message) is bytes:
+            sock.sendto(message, multicast_group)
+        log.info('Sent message {}'.format(n))
+        # time.sleep(.01)
+        n += 1
+        if loop !=0 and loop<n:
+            break
+
     sock.close()
  
  
@@ -73,8 +84,9 @@ def receive(mcast_address, mcast_port, iface):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
  
     while True:
-        message, address = sock.recvfrom(2048)
-        log.info('{}:{} sent: "{}"'.format(address[0], address[1], message))
+        message, address = sock.recvfrom(4096)
+        payload = deserialize(message)
+        log.info('{}:{} recvd: "{}"'.format(address[0], address[1], payload['count']))
  
  
 if __name__ == '__main__':
@@ -83,7 +95,7 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--mcast-address', default='238.1.1.1', help='Multicast address')
     parser.add_argument('-p', '--mcast-port', default=2000, type=int, help='Multicast port')
     parser.add_argument('-i', '--iface', default='0.0.0.0', help='Local interface address to use')
-    parser.add_argument('-m', '--message', default='test message', help='Message to send')
+    parser.add_argument('-m', '--message', default=None, help='Message to send')
     parser.add_argument('-l', '--loop', default=1, type=int, help='Number of times to send the tx message, 0=infinite')
     args = parser.parse_args()
  

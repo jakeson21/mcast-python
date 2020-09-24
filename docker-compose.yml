@@ -5,7 +5,7 @@ services:
         depends_on:
             - rx-app-1
         #network_mode: host
-        entrypoint: ["/root/app/mcast.py", "tx", "-m", "Sending", "-l", "60"]
+        entrypoint: ["/root/app/mcast.py", "tx", "-m", "Sending", "-l", "0"]
         networks:
             mcast:
                 ipv4_address: 172.16.238.10
